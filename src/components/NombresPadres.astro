@@ -1,0 +1,217 @@
+---
+// src/components/NombresPadres.astro
+// Arco vino con la bendición y los nombres de los padres.
+//
+// Al asomar: el arco sube, el filete crema se dibuja subiendo por el borde
+// de la cúpula, los anillos giran a su lugar, los renglones aparecen uno
+// tras otro y al final un destello de luz cruza el arco una sola vez.
+// ── DATOS EDITABLES ───────────────────────────────────────────
+import FloresEsquinas from "./FloresEsquinas.astro";
+const bendicion = ["Con la bendición de Dios", "y de nuestros padres :"];
+
+const padres = [
+    {
+        titulo: "PADRES DE LA NOVIA",
+        nombres: ["Ricardo M. Salazar Vega", "Carolina P. Méndez Rojas"],
+    },
+    {
+        titulo: "PADRES DEL NOVIO",
+        nombres: ["Fernando L. Castillo Ríos", "Patricia Herrera de Castillo"],
+    },
+];
+// ──────────────────────────────────────────────────────────────
+---
+
+<!-- Mismo aire arriba y abajo: antes el pie era más grande (pb-24) que la cabeza. -->
+<section class="w-full flex justify-center py-20 px-6">
+    <!-- Envoltorio: las flores se apoyan en la base del arco, por delante -->
+    <div class="relative isolate w-full max-w-[340px]">
+    <div
+        id="arco-padres"
+        class="arco-luz arco-oro relative overflow-hidden w-full max-w-[340px] bg-vino rounded-t-full shadow-[0_18px_40px_rgba(60,8,16,0.28)] flex flex-col items-center text-center px-7 pt-16 pb-12"
+    >
+        <!-- Destello que cruza el arco al entrar -->
+        <div class="padres-destello" aria-hidden="true"></div>
+
+        <div class="padres-anillos medallon w-[62px] h-[62px]" aria-hidden="true">
+            <span
+                class="icono icono-crema w-8 h-8"
+                style="--ic:url('/iconos/Anillos.png')"></span>
+        </div>
+
+        <p class="font-great-vibes text-crema text-[clamp(1.4rem,7vw,1.9rem)] leading-[1.5] mt-6 padres-sombra">
+            {bendicion.map((linea) => (
+                <span class="padres-linea block whitespace-nowrap">{linea}</span>
+            ))}
+        </p>
+
+        <div class="padres-linea adorno-oro mt-4" aria-hidden="true">
+            <span></span><i></i><span></span>
+        </div>
+
+        {
+            padres.map((grupo, i) => (
+                <div class={i === 0 ? "mt-7" : "mt-0"}>
+                    {/* Entre las dos familias: un corazón dorado entre filetes */}
+                    {i > 0 && (
+                        <div class="padres-linea padres-separador" aria-hidden="true">
+                            <span></span>
+                            <svg viewBox="0 0 24 24">
+                                <path d="M12 21s-7.5-4.7-9.3-9A5.3 5.3 0 0 1 12 6.5 5.3 5.3 0 0 1 21.3 12c-1.8 4.3-9.3 9-9.3 9z" />
+                            </svg>
+                            <span></span>
+                        </div>
+                    )}
+                    <h3 class="padres-linea font-callingstone text-oro-claro text-[clamp(0.6rem,3.05vw,0.83rem)] tracking-[0.14em] whitespace-nowrap">
+                        {grupo.titulo}
+                    </h3>
+                    {/* Padre y madre unidos por un "&" dorado, como en las
+                        participaciones impresas */}
+                    <div class="mt-3">
+                        {grupo.nombres.map((nombre, j) => (
+                            <>
+                                {j > 0 && (
+                                    <p
+                                        class="padres-linea font-great-vibes text-oro-claro text-[1.45rem] leading-[1.15]"
+                                        aria-hidden="true"
+                                    >
+                                        &amp;
+                                    </p>
+                                )}
+                                <p class="padres-linea font-balham text-crema text-[clamp(0.85rem,4.4vw,1.15rem)] tracking-wide whitespace-nowrap">
+                                    {nombre}
+                                </p>
+                            </>
+                        ))}
+                    </div>
+                </div>
+            ))
+        }
+
+        <div class="padres-linea adorno-oro mt-8" aria-hidden="true">
+            <span></span><i></i><span></span>
+        </div>
+    </div>
+    <FloresEsquinas lados={["izq", "der"]} ancho={120} alFrente />
+    </div>
+</section>
+
+<style>
+    .padres-sombra {
+        text-shadow: 0 2px 12px rgba(0, 0, 0, 0.18);
+    }
+
+    /* Corazón dorado entre los padres de la novia y los del novio */
+    .padres-separador {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.6rem;
+        margin: 1.7rem auto 1.5rem;
+    }
+    .padres-separador span {
+        width: 44px;
+        height: 1px;
+        background: linear-gradient(90deg, transparent, #d9bd85);
+    }
+    .padres-separador span:last-child {
+        transform: scaleX(-1);
+    }
+    .padres-separador svg {
+        width: 13px;
+        height: 13px;
+        fill: #d9bd85;
+    }
+
+    .padres-destello {
+        position: absolute;
+        top: -10%;
+        bottom: -10%;
+        left: -45%;
+        width: 38%;
+        pointer-events: none;
+        background: linear-gradient(
+            100deg,
+            rgba(255, 255, 255, 0) 0%,
+            rgba(255, 238, 220, 0.16) 50%,
+            rgba(255, 255, 255, 0) 100%
+        );
+        transform: skewX(-14deg);
+    }
+</style>
+
+<script>
+    import { gsap } from "gsap";
+    import { ScrollTrigger } from "gsap/ScrollTrigger";
+
+    gsap.registerPlugin(ScrollTrigger);
+
+    document.addEventListener("DOMContentLoaded", () => {
+        const arco = document.getElementById("arco-padres");
+        if (!arco) return;
+
+        const anillos = arco.querySelector(".padres-anillos");
+        const lineas = arco.querySelectorAll(".padres-linea");
+        const destello = arco.querySelector(".padres-destello");
+
+        // Mismo criterio que scripts/animaciones.ts: se repite al volver a
+        // bajar y se esconde al salir por arriba.
+        const scrollTrigger = {
+            trigger: arco,
+            start: "top 88%",
+            toggleActions: "restart none none reset",
+        };
+
+        if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+            gsap.fromTo(
+                arco,
+                { opacity: 0 },
+                { opacity: 1, duration: 0.5, ease: "power1.out", scrollTrigger },
+            );
+            return;
+        }
+
+        gsap.timeline({ scrollTrigger })
+            .fromTo(
+                arco,
+                { opacity: 0, y: 28, scale: 0.97 },
+                { opacity: 1, y: 0, scale: 1, duration: 0.9, ease: "sine.out" },
+                0,
+            )
+            // El filete se dibuja de abajo hacia la cúpula
+            .fromTo(
+                arco,
+                { "--filete": "100%" },
+                { "--filete": "0%", duration: 1.5, ease: "power2.inOut" },
+                0.2,
+            )
+            .fromTo(
+                anillos,
+                { opacity: 0, scale: 0.4, rotation: -25 },
+                { opacity: 1, scale: 1, rotation: 0, duration: 0.9, ease: "back.out(1.8)" },
+                0.35,
+            )
+            .fromTo(
+                lineas,
+                { opacity: 0, y: 12, filter: "blur(4px)" },
+                {
+                    opacity: 1,
+                    y: 0,
+                    filter: "blur(0px)",
+                    duration: 0.7,
+                    stagger: 0.08,
+                    ease: "sine.out",
+                },
+                0.45,
+            )
+            // Un destello de luz cruza el arco una sola vez
+            .fromTo(
+                destello,
+                // Recorre de sobra: por la inclinación, el pie de la franja
+                // va atrasado y con menos se quedaba asomando abajo
+                { xPercent: 0 },
+                { xPercent: 560, duration: 1.6, ease: "power2.inOut" },
+                1.1,
+            );
+    });
+</script>

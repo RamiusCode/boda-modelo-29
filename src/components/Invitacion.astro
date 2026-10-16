@@ -1,0 +1,49 @@
+---
+// src/components/Invitacion.astro
+// El cuerpo completo de la invitación, en un solo lugar.
+//
+// Sin `invitado` no se dibuja el nombre del invitado; sin `pases` no se
+// dibuja la sección de pases.
+import Portada from "./Portada.astro";
+import NombresFlores from "./NombresFlores.astro";
+import Versiculo from "./Versiculo.astro";
+import NombresPadres from "./NombresPadres.astro";
+import Fecha from "./Fecha.astro";
+import Contador from "./Contador.astro";
+import Ceremonias from "./Ceremonias.astro";
+import Cronograma from "./Cronograma.astro";
+import CodigoVestimenta from "./CodigoVestimenta.astro";
+import Pases from "./Pases.astro";
+import Confirmar from "./Confirmar.astro";
+import Despedida from "./Despedida.astro";
+import BotonMusica from "./BotonMusica.astro";
+
+interface Props {
+    invitado?: string;
+    pases?: number;
+}
+
+const { invitado, pases } = Astro.props;
+---
+
+<!-- PORTADA (cubre todo hasta que se toca el sobre) -->
+<Portada invitado={invitado} />
+
+<!-- CONTENIDO DE LA INVITACIÓN -->
+<div id="contenido-principal">
+    <!-- Lo primero que se ve al abrir el sobre -->
+    <NombresFlores invitado={invitado} />
+    <Versiculo />
+    <NombresPadres />
+    <Fecha />
+    <Contador />
+    <Ceremonias />
+    <Cronograma />
+    <CodigoVestimenta />
+    <Pases pases={pases} />
+    <Confirmar />
+    <Despedida />
+</div>
+
+<!-- Control de música flotante -->
+<BotonMusica />

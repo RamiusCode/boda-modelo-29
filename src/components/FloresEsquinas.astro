@@ -1,0 +1,92 @@
+---
+// src/components/FloresEsquinas.astro
+// Flores (Ramo.astro) asomando por las esquinas de abajo de una sección.
+//
+// Uso: la sección que las contiene tiene que llevar `relative isolate
+// overflow-hidden`. `isolate` es lo que deja a las flores DETRÁS del texto
+// (van con z-index -1) sin que se escondan detrás del fondo de la página.
+//
+//   <FloresEsquinas lados={["izq", "der"]} />
+//
+// Al asomar la sección brotan desde su esquina.
+import Ramo from "./Ramo.astro";
+
+interface Props {
+    lados?: ("izq" | "der")[];
+    // Ancho de cada ramo en px
+    ancho?: number;
+    // Delante del contenido (sobre un arco, por ejemplo) en vez de detrás
+    alFrente?: boolean;
+}
+
+const { lados = ["izq", "der"], ancho = 130, alFrente = false } = Astro.props;
+---
+
+{
+    lados.map((lado) => (
+        <div
+            class={`flores-esquina ${lado} ${alFrente ? "al-frente" : ""}`}
+            style={`width: ${ancho}px`}
+            aria-hidden="true"
+        >
+            <Ramo espejo={lado === "der"} class="w-full h-auto ramo-sombra" />
+        </div>
+    ))
+}
+
+<style>
+    .flores-esquina {
+        position: absolute;
+        bottom: -18px;
+        z-index: -1;
+        pointer-events: none;
+    }
+    .flores-esquina.al-frente {
+        z-index: 1;
+    }
+    .flores-esquina.izq {
+        left: -22px;
+    }
+    .flores-esquina.der {
+        right: -22px;
+    }
+</style>
+
+<script>
+    import { gsap } from "gsap";
+    import { ScrollTrigger } from "gsap/ScrollTrigger";
+
+    gsap.registerPlugin(ScrollTrigger);
+
+    document.addEventListener("DOMContentLoaded", () => {
+        if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
+        document.querySelectorAll<HTMLElement>(".flores-esquina").forEach((flor) => {
+            const derecha = flor.classList.contains("der");
+
+            // Mismo criterio que scripts/animaciones.ts: se repite al volver
+            // a bajar y se esconde al salir por arriba.
+            gsap.fromTo(
+                flor,
+                {
+                    opacity: 0,
+                    scale: 0.55,
+                    rotation: derecha ? 14 : -14,
+                    transformOrigin: derecha ? "100% 100%" : "0% 100%",
+                },
+                {
+                    opacity: 1,
+                    scale: 1,
+                    rotation: 0,
+                    duration: 1.3,
+                    ease: "back.out(1.4)",
+                    scrollTrigger: {
+                        trigger: flor.parentElement,
+                        start: "top 75%",
+                        toggleActions: "restart none none reset",
+                    },
+                },
+            );
+        });
+    });
+</script>

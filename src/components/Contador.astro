@@ -1,0 +1,254 @@
+---
+// src/components/Contador.astro
+// Banda "Falta para nuestra boda" + cuenta regresiva en cuatro anillos
+// dorados finos que se llenan según lo que falta (días del año, horas del
+// día, minutos y segundos). Al asomar, los anillos se dibujan desde cero;
+// después el de los segundos avanza en vivo con un puntito dorado en la
+// punta.
+import FloresEsquinas from "./FloresEsquinas.astro";
+
+// ── DATOS EDITABLES ───────────────────────────────────────────
+const titulo = "FALTA PARA NUESTRA BODA";
+// Fecha y hora de la boda (año, mes-1, día, hora, minuto)
+const fechaBoda = "2027-10-16T12:00:00";
+const frase = "Cada segundo nos acerca a ese gran día";
+// ──────────────────────────────────────────────────────────────
+
+// `tope`: el valor con el que el anillo queda completo
+const casillas = [
+    { id: "dias", rotulo: "Días", tope: 365 },
+    { id: "horas", rotulo: "Horas", tope: 24 },
+    { id: "minutos", rotulo: "Minutos", tope: 60 },
+    { id: "segundos", rotulo: "Segundos", tope: 60 },
+];
+
+// Circunferencia del anillo (radio 45 en un viewBox de 100)
+const VUELTA = 2 * Math.PI * 45;
+---
+
+<section
+    id="franja-contador"
+    class="franja relative w-full py-9 px-7 overflow-hidden"
+>
+    <div class="franja-fondo absolute inset-0 bg-vino">
+        <span class="franja-filete arriba"></span>
+        <span class="franja-filete abajo"></span>
+    </div>
+
+    <h2
+        class="franja-texto relative font-callingstone text-crema text-center text-[clamp(0.75rem,3.8vw,1.02rem)] tracking-[0.1em] whitespace-nowrap"
+    >
+        {titulo}
+    </h2>
+</section>
+
+<!-- Mismo aire arriba y abajo: antes el pie era más grande (pb-24) que la cabeza. -->
+<section
+    id="contador"
+    class="relative isolate overflow-hidden w-full px-4 pt-14 pb-24 flex flex-col items-center"
+    data-fecha={fechaBoda}
+>
+    <p class="contador-anim font-cormorant font-medium italic text-vino text-center text-[clamp(1.25rem,5.8vw,1.45rem)] leading-[1.4]">
+        {frase}
+    </p>
+
+    <!-- Degradado dorado de los anillos (uno para todos) -->
+    <svg width="0" height="0" class="absolute" aria-hidden="true">
+        <defs>
+            <linearGradient id="contador-oro" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0" stop-color="#e6cf9c" />
+                <stop offset="0.5" stop-color="#c7a467" />
+                <stop offset="1" stop-color="#9c7841" />
+            </linearGradient>
+        </defs>
+    </svg>
+
+    <div class="flex justify-center gap-[clamp(0.4rem,2.4vw,0.8rem)] w-full max-w-[370px] mt-8">
+        {
+            casillas.map((casilla) => (
+                // min-w-0: sin esto el rótulo más largo ("Segundos") ensancha
+                // su columna y los anillos dejan de medir igual.
+                <div class="contador-anim flex-1 min-w-0 flex flex-col items-center">
+                    <div class="relative w-full aspect-square">
+                        <svg class="contador-anillo" viewBox="0 0 100 100" aria-hidden="true">
+                            <circle class="pista" cx="50" cy="50" r="45" />
+                            <circle class="pista-interior" cx="50" cy="50" r="40" />
+                            <g class="giro" data-giro={casilla.id}>
+                                <circle
+                                    class="avance"
+                                    data-avance={casilla.id}
+                                    data-tope={casilla.tope}
+                                    cx="50"
+                                    cy="50"
+                                    r="45"
+                                    stroke-dasharray={VUELTA}
+                                    stroke-dashoffset={VUELTA}
+                                />
+                            </g>
+                            <g class="punta" data-punta={casilla.id}>
+                                <circle cx="50" cy="5" r="2.6" />
+                            </g>
+                        </svg>
+                        <span
+                            id={casilla.id}
+                            class="absolute inset-0 flex items-center justify-center font-cormorant font-medium text-vino text-[clamp(1.6rem,7.8vw,2.1rem)] leading-none"
+                        >
+                            00
+                        </span>
+                    </div>
+                    <p class="font-cormorant font-medium italic text-marron text-[clamp(1.08rem,4.9vw,1.25rem)] mt-2 whitespace-nowrap">
+                        {casilla.rotulo}
+                    </p>
+                </div>
+            ))
+        }
+    </div>
+
+    <div class="contador-anim adorno-vino mt-9" aria-hidden="true">
+        <span></span><i></i><span></span>
+    </div>
+
+    <FloresEsquinas lados={["der"]} ancho={125} />
+</section>
+
+<style>
+    .contador-anillo {
+        width: 100%;
+        height: 100%;
+        overflow: visible;
+    }
+    .contador-anillo .pista {
+        fill: none;
+        stroke: rgba(199, 164, 103, 0.28);
+        stroke-width: 1;
+    }
+    .contador-anillo .pista-interior {
+        fill: none;
+        stroke: rgba(199, 164, 103, 0.18);
+        stroke-width: 0.6;
+    }
+    /* El avance arranca arriba (las 12) y gira en sentido horario */
+    .contador-anillo .giro {
+        transform: rotate(-90deg);
+        transform-origin: 50px 50px;
+    }
+    .contador-anillo .avance {
+        fill: none;
+        stroke: url(#contador-oro);
+        stroke-width: 2.2;
+        stroke-linecap: round;
+        transition: stroke-dashoffset 0.6s ease;
+    }
+    /* Puntito dorado en la punta del avance */
+    .contador-anillo .punta {
+        transform-origin: 50px 50px;
+        transition: transform 0.6s ease;
+    }
+    .contador-anillo .punta circle {
+        fill: #c7a467;
+        stroke: #fffdf9;
+        stroke-width: 1;
+    }
+    /* Primer dibujo al asomar: más lento, para que se vea llenarse */
+    .llenando .avance,
+    .llenando .punta {
+        transition-duration: 1.6s;
+        transition-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+    }
+    /* Al dar la vuelta (59 → 00) el anillo vuelve a cero sin barrer hacia
+       atrás */
+    .sin-transicion .avance,
+    .sin-transicion .punta {
+        transition: none;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .contador-anillo .avance,
+        .contador-anillo .punta {
+            transition: none;
+        }
+    }
+</style>
+
+<script>
+    import { animarEntrada, animarFranja } from "../scripts/animaciones";
+
+    const VUELTA = 2 * Math.PI * 45;
+
+    document.addEventListener("DOMContentLoaded", () => {
+        const franja = document.getElementById("franja-contador");
+        if (franja) animarFranja(franja);
+
+        const seccion = document.getElementById("contador");
+        if (!seccion) return;
+
+        animarEntrada(seccion.querySelectorAll<HTMLElement>(".contador-anim"), seccion);
+
+        const objetivo = new Date(seccion.dataset.fecha as string).getTime();
+        const ids = ["dias", "horas", "minutos", "segundos"];
+        const anterior: Record<string, number> = {};
+
+        // Los anillos arrancan vacíos y se llenan recién cuando el invitado
+        // llega a la sección
+        let visible = false;
+
+        const dibujarAnillo = (id: string, valor: number) => {
+            const avance = seccion.querySelector<SVGCircleElement>(`[data-avance="${id}"]`);
+            const punta = seccion.querySelector<SVGGElement>(`[data-punta="${id}"]`);
+            if (!avance || !punta) return;
+
+            const tope = Number(avance.dataset.tope);
+            const parte = Math.min(valor / tope, 1);
+            const anillo = avance.closest("svg");
+
+            // Al dar la vuelta (por ejemplo 00 → 59) se salta sin animar
+            if (anterior[id] !== undefined && valor > anterior[id] && id !== "dias") {
+                anillo?.classList.add("sin-transicion");
+                requestAnimationFrame(() =>
+                    requestAnimationFrame(() => anillo?.classList.remove("sin-transicion")),
+                );
+            }
+            anterior[id] = valor;
+
+            avance.style.strokeDashoffset = String(VUELTA * (1 - parte));
+            punta.style.transform = `rotate(${parte * 360}deg)`;
+        };
+
+        const pintar = () => {
+            const resta = Math.max(objetivo - Date.now(), 0);
+            const seg = Math.floor(resta / 1000);
+            const valores: Record<string, number> = {
+                dias: Math.floor(seg / 86400),
+                horas: Math.floor((seg % 86400) / 3600),
+                minutos: Math.floor((seg % 3600) / 60),
+                segundos: seg % 60,
+            };
+
+            ids.forEach((id) => {
+                const texto = document.getElementById(id);
+                if (texto) {
+                    texto.textContent =
+                        id === "dias"
+                            ? valores[id].toString()
+                            : valores[id].toString().padStart(2, "0");
+                }
+                if (visible) dibujarAnillo(id, valores[id]);
+            });
+        };
+
+        pintar();
+        setInterval(pintar, 1000);
+
+        new IntersectionObserver(
+            (entradas, observador) => {
+                if (!entradas.some((e) => e.isIntersecting)) return;
+                observador.disconnect();
+                seccion.classList.add("llenando");
+                visible = true;
+                pintar();
+                setTimeout(() => seccion.classList.remove("llenando"), 1700);
+            },
+            { threshold: 0.35 },
+        ).observe(seccion);
+    });
+</script>

@@ -1,0 +1,1034 @@
+---
+// src/components/Portada.astro
+// Portada en 3D: un sobre de papel marfil con filete dorado, cerrado con
+// un sello de cera vino.
+//
+//   · el sobre flota y se inclina siguiendo el mouse o el celular; tiene
+//     canto, así que al girar se le ve el grosor del papel
+//   · al tocarlo el sobre se acerca, el sello se disuelve en luz, un
+//     destello cruza el papel, la solapa se abre despacio (forro vino con
+//     dibujo dorado) soltando polvo dorado, la tarjeta sale del sobre y
+//     viene hacia la cámara mientras el sobre se aleja
+//   · al terminar se desvanece, deja ver la invitación y avisa con el
+//     evento "portada:abierta" por si alguna sección quiere esperarlo
+import Ramo from "./Ramo.astro";
+import { evento } from "../data/evento";
+
+const { nombre1, nombre2, monograma, iniciales, anuncio, fechaCorta } = evento;
+const textoSobre = "Toca el sello para abrir";
+
+// El nombre del invitado llega desde la página; si no se pasa, esa línea
+// directamente no se dibuja.
+interface Props {
+    invitado?: string;
+}
+
+const { invitado } = Astro.props;
+
+// Los nombres de la lista van de 20 a 45 caracteres: el cuerpo baja por
+// tramos para que el largo entre en uno o dos renglones (nunca se fuerza
+// a uno solo).
+const cuerpoInvitado =
+    !invitado || invitado.length <= 28
+        ? "text-[clamp(0.95rem,4.3vw,1.1rem)]"
+        : invitado.length <= 38
+          ? "text-[clamp(0.85rem,3.8vw,1rem)]"
+          : "text-[clamp(0.78rem,3.4vw,0.92rem)]";
+
+// Borde irregular del sello de cera: un círculo con pequeñas ondulaciones
+// fijas (no al azar, así el sello sale igual en cada carga).
+const PUNTOS = 26;
+const borde = Array.from({ length: PUNTOS }, (_, i) => {
+    const a = (i / PUNTOS) * Math.PI * 2;
+    const r = 45 + Math.sin(i * 2.7) * 2.3 + Math.cos(i * 1.3) * 1.7;
+    return [50 + r * Math.cos(a), 50 + r * Math.sin(a)];
+});
+const medio = (p: number[], q: number[]) => [(p[0] + q[0]) / 2, (p[1] + q[1]) / 2];
+const n = (v: number) => v.toFixed(2);
+const bordeSello =
+    `M${medio(borde[PUNTOS - 1], borde[0]).map(n).join(" ")}` +
+    borde
+        .map((p, i) => {
+            const m = medio(p, borde[(i + 1) % PUNTOS]);
+            return ` Q${n(p[0])} ${n(p[1])} ${n(m[0])} ${n(m[1])}`;
+        })
+        .join("") +
+    "Z";
+---
+
+<!-- Degradados, textura de papel y forro: se definen una vez y los usan
+     todas las piezas del sobre -->
+<svg class="defs-sobre" width="0" height="0" aria-hidden="true">
+    <defs>
+        <linearGradient id="sb-oro" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stop-color="#9c7841" />
+            <stop offset="0.35" stop-color="#ecd7a6" />
+            <stop offset="0.6" stop-color="#c7a467" />
+            <stop offset="1" stop-color="#8f6d3a" />
+        </linearGradient>
+        <linearGradient id="sb-solapa" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#fbf7ef" />
+            <stop offset="1" stop-color="#ece0cb" />
+        </linearGradient>
+        <linearGradient id="sb-lado-izq" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0" stop-color="#f6efe3" />
+            <stop offset="1" stop-color="#e6d8c1" />
+        </linearGradient>
+        <linearGradient id="sb-lado-der" x1="1" y1="0" x2="0" y2="0">
+            <stop offset="0" stop-color="#f3ebdd" />
+            <stop offset="1" stop-color="#e2d3ba" />
+        </linearGradient>
+        <linearGradient id="sb-abajo" x1="0" y1="1" x2="0" y2="0">
+            <stop offset="0" stop-color="#f1e7d6" />
+            <stop offset="1" stop-color="#fbf6ec" />
+        </linearGradient>
+        <radialGradient id="sb-cera" cx="0.36" cy="0.3" r="0.75">
+            <stop offset="0" stop-color="#cf5664" />
+            <stop offset="0.45" stop-color="#8e1a27" />
+            <stop offset="1" stop-color="#4a0811" />
+        </radialGradient>
+        <radialGradient id="sb-brillo" cx="0.5" cy="0.5" r="0.5">
+            <stop offset="0" stop-color="#fff" stop-opacity="0.55" />
+            <stop offset="1" stop-color="#fff" stop-opacity="0" />
+        </radialGradient>
+
+        <!-- Forro: vino con un enrejado dorado fino -->
+        <pattern id="sb-forro" width="9" height="9" patternUnits="userSpaceOnUse">
+            <rect width="9" height="9" fill="#7a1220" />
+            <path
+                d="M4.5 0.6 L8.4 4.5 L4.5 8.4 L0.6 4.5Z"
+                fill="none"
+                stroke="#d6b97f"
+                stroke-width="0.3"
+                opacity="0.55"
+            />
+            <circle cx="4.5" cy="4.5" r="0.75" fill="#e2c78f" opacity="0.7" />
+            <circle cx="0" cy="0" r="0.5" fill="#e2c78f" opacity="0.5" />
+            <circle cx="9" cy="9" r="0.5" fill="#e2c78f" opacity="0.5" />
+        </pattern>
+
+        <!-- Grano de papel: ruido muy fino sólo dentro de la forma -->
+        <filter id="sb-papel" x="0" y="0" width="100%" height="100%">
+            <feTurbulence
+                type="fractalNoise"
+                baseFrequency="1.4"
+                numOctaves="2"
+                seed="7"
+                result="ruido"
+            />
+            <feColorMatrix
+                in="ruido"
+                type="matrix"
+                values="0 0 0 0 0.45  0 0 0 0 0.35  0 0 0 0 0.22  0 0 0 0.11 0"
+                result="grano"
+            />
+            <feComposite in="grano" in2="SourceGraphic" operator="in" result="granoDentro" />
+            <feMerge>
+                <feMergeNode in="SourceGraphic" />
+                <feMergeNode in="granoDentro" />
+            </feMerge>
+        </filter>
+    </defs>
+</svg>
+
+<section
+    id="portada-section"
+    class="fixed inset-0 w-full h-[100svh] flex justify-center z-[8500]"
+>
+    <div class="portada-columna">
+        <!-- Pétalos cayendo en profundidad (los crea el script) -->
+        <div id="petalos-portada" class="capa-petalos"></div>
+
+        <!-- Ramos en las esquinas, cada uno a su profundidad -->
+        <div class="ramo-esquina arriba" data-profundidad="14">
+            <div class="ramo-giro">
+                <Ramo id="ramo-portada-1" espejo class="w-full h-auto ramo-sombra" />
+            </div>
+        </div>
+        <div class="ramo-esquina abajo" data-profundidad="22">
+            <Ramo id="ramo-portada-2" espejo class="w-full h-auto ramo-sombra" />
+        </div>
+
+        <!-- Encabezado -->
+        <header class="encabezado">
+            <p class="font-charm text-vino text-[clamp(1.15rem,5.2vw,1.35rem)] tracking-[0.06em]">
+                {anuncio}
+            </p>
+            {/* Great Vibes sin mayúsculas forzadas ni espaciado entre
+                letras: esa cursiva no los tolera. Su "&" es propio y se
+                lee bien, no hace falta traerlo de otra fuente. */}
+            <h1
+                class="nombres-portada font-great-vibes text-vino text-[clamp(2.3rem,11vw,2.95rem)] leading-[1.25] mt-1 whitespace-nowrap"
+            >
+                {nombre1}<span class="mx-[0.28em]">&amp;</span>{nombre2}
+            </h1>
+            <div class="adorno" aria-hidden="true">
+                <span></span><i></i><span></span>
+            </div>
+            <p class="font-cormorant text-marron text-[0.95rem] tracking-[0.32em]">
+                {fechaCorta}
+            </p>
+            {
+                invitado && (
+                    <p
+                        class={`font-charm text-vino leading-[1.5] mt-4 max-w-[19rem] mx-auto ${cuerpoInvitado}`}
+                    >
+                        {invitado}
+                    </p>
+                )
+            }
+        </header>
+
+        <!-- Escena 3D del sobre -->
+        <div class="escena-sobre">
+            <div id="sobre-flotar" class="capa-3d">
+                <div id="sobre-inclinacion" class="capa-3d">
+                    <div
+                        id="sobre-3d"
+                        class="sobre"
+                        role="button"
+                        tabindex="0"
+                        aria-label="Abrir la invitación"
+                    >
+                        <!-- Canto: el grosor del papel, visible al inclinar -->
+                        <div class="canto" style="transform: translateZ(-1.2px)"></div>
+                        <div class="canto" style="transform: translateZ(-2.4px)"></div>
+                        <div class="canto oscuro" style="transform: translateZ(-3.6px)"></div>
+
+                        <!-- Interior: el forro de la espalda del sobre -->
+                        <svg class="sobre-fondo" viewBox="0 0 142 100" aria-hidden="true">
+                            <rect width="142" height="100" rx="3" fill="url(#sb-forro)" />
+                            <rect
+                                width="142"
+                                height="100"
+                                rx="3"
+                                fill="#000"
+                                opacity="0.18"
+                            />
+                        </svg>
+
+                        <!-- Tarjeta que sale -->
+                        <div id="tarjeta" class="tarjeta">
+                            <div class="tarjeta-marco">
+                                <span
+                                    class="monograma-vino"
+                                    style={`--mono:url('${monograma}')`}
+                                    aria-label={iniciales}></span>
+                                <div class="tarjeta-adorno" aria-hidden="true">
+                                    <span></span><i></i><span></span>
+                                </div>
+                                <p class="font-great-vibes text-vino text-[1.45rem] leading-[1.3] whitespace-nowrap">
+                                    {nombre1} &amp; {nombre2}
+                                </p>
+                                <p class="font-cormorant text-marron text-[0.6rem] tracking-[0.32em] mt-1">
+                                    {fechaCorta}
+                                </p>
+                            </div>
+                        </div>
+
+                        <!-- Bolsillo delantero: tres pliegues con filete dorado -->
+                        <svg
+                            id="bolsillo"
+                            class="bolsillo"
+                            viewBox="0 0 142 100"
+                            aria-hidden="true"
+                        >
+                            <clipPath id="sb-recorte">
+                                <rect width="142" height="100" rx="3" />
+                            </clipPath>
+                            <g clip-path="url(#sb-recorte)" filter="url(#sb-papel)">
+                                <path d="M0 0 L66 56 Q71 60 66 64 L0 100Z" fill="url(#sb-lado-izq)" />
+                                <path d="M142 0 L76 56 Q71 60 76 64 L142 100Z" fill="url(#sb-lado-der)" />
+                                <!-- Pliegues laterales: van debajo del pliegue de abajo,
+                                     así no se cruzan sobre su punta -->
+                                <path
+                                    d="M0 0 L66 56 M142 0 L76 56"
+                                    stroke="#6a4925"
+                                    stroke-opacity="0.12"
+                                    stroke-width="0.4"
+                                    fill="none"
+                                />
+                                <path d="M0 100 L61 52 Q71 44.5 81 52 L142 100Z" fill="url(#sb-abajo)" />
+                            </g>
+                            <!-- Filete dorado del pliegue de abajo -->
+                            <path
+                                d="M0 100 L61 52 Q71 44.5 81 52 L142 100"
+                                stroke="url(#sb-oro)"
+                                stroke-width="0.7"
+                                fill="none"
+                            />
+                            <rect
+                                x="0.4"
+                                y="0.4"
+                                width="141.2"
+                                height="99.2"
+                                rx="2.8"
+                                fill="none"
+                                stroke="url(#sb-oro)"
+                                stroke-width="0.5"
+                                opacity="0.8"
+                            />
+                        </svg>
+
+                        <!-- Solapa con bisagra arriba -->
+                        <div id="solapa" class="solapa">
+                            <svg class="solapa-cara" viewBox="0 0 142 60" aria-hidden="true">
+                                <path
+                                    d="M0 0 H142 L78 53 Q71 59 64 53Z"
+                                    fill="url(#sb-solapa)"
+                                    filter="url(#sb-papel)"
+                                />
+                                <path
+                                    d="M0 0 L64 53 Q71 59 78 53 L142 0"
+                                    stroke="url(#sb-oro)"
+                                    stroke-width="0.8"
+                                    fill="none"
+                                />
+                                <path
+                                    d="M10 2.6 L65.5 48.6 Q71 53.2 76.5 48.6 L132 2.6"
+                                    stroke="url(#sb-oro)"
+                                    stroke-width="0.35"
+                                    fill="none"
+                                    opacity="0.85"
+                                />
+                            </svg>
+                            <svg class="solapa-dorso" viewBox="0 0 142 60" aria-hidden="true">
+                                <path d="M0 0 H142 L78 53 Q71 59 64 53Z" fill="url(#sb-forro)" />
+                                <path
+                                    d="M0 0 L64 53 Q71 59 78 53 L142 0"
+                                    stroke="url(#sb-oro)"
+                                    stroke-width="1"
+                                    fill="none"
+                                />
+                            </svg>
+                        </div>
+
+                        <!-- Destello que recorre el papel al abrir -->
+                        <div id="sobre-brillo" class="sobre-brillo"></div>
+
+                        <!-- Polvo dorado que sale al abrir (lo llena el script) -->
+                        <div id="polvo-dorado" class="polvo-dorado"></div>
+
+                        <!-- Sello de cera -->
+                        <button
+                            id="sello"
+                            type="button"
+                            class="sello"
+                            aria-label="Romper el sello y abrir la invitación"
+                        >
+                            <svg viewBox="0 0 100 100" class="sello-cera" aria-hidden="true">
+                                <path d={bordeSello} fill="url(#sb-cera)" />
+                                <circle
+                                    cx="50"
+                                    cy="50.8"
+                                    r="33"
+                                    fill="none"
+                                    stroke="#3d060d"
+                                    stroke-opacity="0.55"
+                                    stroke-width="2.2"
+                                />
+                                <circle
+                                    cx="50"
+                                    cy="49.4"
+                                    r="33"
+                                    fill="none"
+                                    stroke="#f2a5ad"
+                                    stroke-opacity="0.35"
+                                    stroke-width="1.2"
+                                />
+                                <ellipse
+                                    cx="35"
+                                    cy="28"
+                                    rx="16"
+                                    ry="9"
+                                    fill="url(#sb-brillo)"
+                                    transform="rotate(-30 35 28)"
+                                />
+                            </svg>
+                            <span class="sello-relieve">
+                                <span
+                                    class="sello-mono"
+                                    style={`--mono:url('${monograma}')`}></span>
+                            </span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div id="sobre-sombra" class="sobre-sombra"></div>
+        </div>
+
+        <p id="instruccion" class="instruccion font-cormorant">{textoSobre}</p>
+    </div>
+</section>
+
+<style>
+    .defs-sobre {
+        position: absolute;
+        width: 0;
+        height: 0;
+        overflow: hidden;
+    }
+
+    #portada-section {
+        background-color: #e9e4dd;
+    }
+
+    /* Columna móvil: el diseño nunca se estira en tablet / PC */
+    .portada-columna {
+        position: relative;
+        width: 100%;
+        max-width: 430px;
+        height: 100%;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 0 1.5rem;
+        background-image:
+            radial-gradient(
+                120% 75% at 50% 45%,
+                rgba(255, 255, 255, 0.85) 0%,
+                rgba(247, 241, 233, 0) 60%,
+                rgba(134, 22, 34, 0.08) 100%
+            ),
+            url("/imagenes/fondoprincipal.webp"),
+            linear-gradient(#f7f2ec, #f7f2ec);
+        background-size: cover;
+        background-position: center;
+        box-shadow: 0 0 40px rgba(0, 0, 0, 0.08);
+        perspective: 900px;
+    }
+
+    /* ── Ramos ───────────────────────────────────────────── */
+    .ramo-esquina {
+        position: absolute;
+        width: min(58vw, 250px);
+        pointer-events: none;
+        z-index: 1;
+    }
+    .ramo-esquina.arriba {
+        top: -9%;
+        left: -16%;
+    }
+    .ramo-esquina.arriba .ramo-giro {
+        transform: rotate(180deg);
+    }
+    .ramo-esquina.abajo {
+        bottom: -7%;
+        right: -14%;
+    }
+
+    /* ── Encabezado ──────────────────────────────────────── */
+    .encabezado {
+        position: relative;
+        z-index: 2;
+        text-align: center;
+        margin-bottom: 2.6rem;
+    }
+
+    .nombres-portada {
+        text-shadow: 0 3px 10px rgba(134, 22, 34, 0.14);
+    }
+
+    .adorno {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.6rem;
+        margin: 0.35rem 0 0.55rem;
+    }
+    .adorno span {
+        width: 54px;
+        height: 1px;
+        background: linear-gradient(90deg, transparent, var(--color-vino));
+    }
+    .adorno span:last-child {
+        transform: scaleX(-1);
+    }
+    .adorno i {
+        width: 6px;
+        height: 6px;
+        background: var(--color-vino);
+        transform: rotate(45deg);
+    }
+
+    /* ── Sobre 3D ────────────────────────────────────────── */
+    .escena-sobre {
+        position: relative;
+        z-index: 3;
+        width: min(80vw, 310px);
+        perspective: 1100px;
+    }
+
+    .capa-3d {
+        transform-style: preserve-3d;
+    }
+
+    .sobre {
+        position: relative;
+        width: 100%;
+        aspect-ratio: 1.42;
+        transform-style: preserve-3d;
+        cursor: pointer;
+        -webkit-tap-highlight-color: transparent;
+        outline: none;
+    }
+
+    .canto {
+        position: absolute;
+        inset: 0;
+        border-radius: 5px;
+        background: #ddd0b9;
+    }
+    .canto.oscuro {
+        background: #c7b597;
+        box-shadow: 0 18px 30px rgba(70, 35, 20, 0.22);
+    }
+
+    .sobre-fondo {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+    }
+
+    .tarjeta {
+        position: absolute;
+        left: 5%;
+        right: 5%;
+        bottom: 5%;
+        height: 86%;
+        padding: 6px;
+        border-radius: 3px;
+        background:
+            url("/imagenes/fondoprincipal.webp") center / cover,
+            #fdfaf4;
+        box-shadow:
+            0 2px 10px rgba(80, 40, 20, 0.2),
+            inset 0 0 0 1px rgba(199, 164, 103, 0.9);
+        transform: translateZ(1px);
+    }
+    .tarjeta-marco {
+        height: 100%;
+        border: 1px solid rgba(199, 164, 103, 0.75);
+        outline: 1px solid rgba(199, 164, 103, 0.35);
+        outline-offset: -4px;
+        border-radius: 2px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: flex-start;
+        padding-top: 11%;
+        text-align: center;
+    }
+
+    .monograma-vino {
+        display: block;
+        width: 50px;
+        height: 39px;
+        background-color: var(--color-vino);
+        -webkit-mask: var(--mono) center / contain no-repeat;
+        mask: var(--mono) center / contain no-repeat;
+    }
+
+    .tarjeta-adorno {
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+        margin: 0.35rem 0 0.15rem;
+    }
+    .tarjeta-adorno span {
+        width: 34px;
+        height: 1px;
+        background: linear-gradient(90deg, transparent, #c7a467);
+    }
+    .tarjeta-adorno span:last-child {
+        transform: scaleX(-1);
+    }
+    .tarjeta-adorno i {
+        width: 4px;
+        height: 4px;
+        background: #c7a467;
+        transform: rotate(45deg);
+    }
+
+    .bolsillo {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        overflow: visible;
+        transform: translateZ(2px);
+        filter: drop-shadow(0 -1.5px 2.5px rgba(90, 60, 30, 0.14));
+    }
+
+    .solapa {
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 0;
+        height: 60%;
+        transform-origin: 50% 0%;
+        transform: translateZ(3px);
+        transform-style: preserve-3d;
+    }
+    .solapa-cara,
+    .solapa-dorso {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        overflow: visible;
+        -webkit-backface-visibility: hidden;
+        backface-visibility: hidden;
+    }
+    .solapa-cara {
+        filter: drop-shadow(0 2px 2.5px rgba(90, 60, 30, 0.2));
+    }
+    /* El dorso se da vuelta de costado (Y), no hacia arriba (X): sumado al
+       giro de la solapa sobre su bisagra deja la punta hacia arriba y
+       pegada al sobre. Con rotateX quedaba flotando con la punta abajo. */
+    .solapa-dorso {
+        transform: rotateY(180deg);
+    }
+
+    /* Destello: una franja de luz que cruza el sobre en diagonal */
+    .sobre-brillo {
+        position: absolute;
+        inset: 0;
+        border-radius: 4px;
+        overflow: hidden;
+        pointer-events: none;
+        opacity: 0;
+        transform: translateZ(6px);
+    }
+    .sobre-brillo::before {
+        content: "";
+        position: absolute;
+        top: -20%;
+        bottom: -20%;
+        left: -60%;
+        width: 45%;
+        background: linear-gradient(
+            100deg,
+            rgba(255, 255, 255, 0) 0%,
+            rgba(255, 248, 230, 0.75) 50%,
+            rgba(255, 255, 255, 0) 100%
+        );
+        transform: translateX(var(--brillo-x, 0%)) skewX(-12deg);
+    }
+
+    /* Polvo dorado: nace en la boca del sobre */
+    .polvo-dorado {
+        position: absolute;
+        left: 50%;
+        top: 4%;
+        width: 0;
+        height: 0;
+        transform-style: preserve-3d;
+        pointer-events: none;
+    }
+    :global(.chispa) {
+        position: absolute;
+        left: 0;
+        top: 0;
+        border-radius: 50%;
+        background: radial-gradient(circle, #fff6dc 0%, #e6c98e 45%, rgba(199, 164, 103, 0) 75%);
+        box-shadow: 0 0 6px rgba(236, 213, 165, 0.9);
+    }
+
+    .sello {
+        position: absolute;
+        left: 50%;
+        top: 56%;
+        width: 68px;
+        height: 68px;
+        padding: 0;
+        border: 0;
+        background: none;
+        cursor: pointer;
+        transform: translate(-50%, -50%) translateZ(5px);
+        -webkit-tap-highlight-color: transparent;
+        filter: drop-shadow(0 6px 8px rgba(60, 8, 16, 0.45));
+    }
+    .sello-cera {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+    }
+    /* Monograma hundido en la cera: más oscuro que la cera, con una luz
+       debajo. La sombra va en el envoltorio porque la máscara recorta el
+       filtro del propio elemento. */
+    .sello-relieve {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        filter: drop-shadow(0 1px 0 rgba(255, 170, 180, 0.4))
+            drop-shadow(0 -0.5px 0 rgba(30, 0, 5, 0.6));
+    }
+    .sello-mono {
+        display: block;
+        width: 32px;
+        height: 25px;
+        background-color: #5a0a14;
+        -webkit-mask: var(--mono) center / contain no-repeat;
+        mask: var(--mono) center / contain no-repeat;
+    }
+    /* Onda que invita a tocar */
+    .sello::after {
+        content: "";
+        position: absolute;
+        inset: 1px;
+        border-radius: 50%;
+        border: 1.5px solid rgba(199, 164, 103, 0.8);
+        animation: onda-sello 2.4s ease-out infinite;
+    }
+    @keyframes onda-sello {
+        from {
+            transform: scale(1);
+            opacity: 0.9;
+        }
+        to {
+            transform: scale(1.75);
+            opacity: 0;
+        }
+    }
+
+    .sobre-sombra {
+        width: 86%;
+        height: 24px;
+        margin: 24px auto 0;
+        border-radius: 50%;
+        background: radial-gradient(
+            closest-side,
+            rgba(70, 30, 20, 0.3),
+            rgba(70, 30, 20, 0)
+        );
+    }
+
+    .instruccion {
+        position: relative;
+        z-index: 2;
+        margin-top: 1.6rem;
+        text-align: center;
+        color: var(--color-marron);
+        font-size: clamp(0.7rem, 3vw, 0.82rem);
+        letter-spacing: 0.28em;
+        text-transform: uppercase;
+    }
+
+    :global(body.portada-activa) {
+        overflow: hidden !important;
+        height: 100vh !important;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        .sello::after {
+            animation: none;
+        }
+    }
+</style>
+
+
+<script>
+    import { gsap } from "gsap";
+    import {
+        crearPetalos,
+        seguirPuntero,
+        menosMovimiento,
+    } from "../scripts/tres-d";
+
+    document.addEventListener("DOMContentLoaded", () => {
+        const portada = document.getElementById("portada-section");
+        const flotar = document.getElementById("sobre-flotar");
+        const inclinacion = document.getElementById("sobre-inclinacion");
+        const sobre = document.getElementById("sobre-3d");
+        const solapa = document.getElementById("solapa");
+        const tarjeta = document.getElementById("tarjeta");
+        const sello = document.getElementById("sello");
+        const brillo = document.getElementById("sobre-brillo");
+        const polvo = document.getElementById("polvo-dorado");
+        const sombra = document.getElementById("sobre-sombra");
+        const instruccion = document.getElementById("instruccion");
+        const capaPetalos = document.getElementById("petalos-portada");
+        if (!portada || !flotar || !inclinacion || !sobre || !solapa || !tarjeta || !sello)
+            return;
+
+        const encabezado = portada.querySelectorAll(".encabezado > *");
+        const ramos = portada.querySelectorAll<HTMLElement>("[data-profundidad]");
+        const restoDelSobre = sobre.querySelectorAll(".canto, .sobre-fondo, .bolsillo");
+
+        document.body.classList.add("portada-activa");
+
+        // GSAP se queda con todas las transformaciones desde acá: así las
+        // profundidades del CSS no se pisan con las del script.
+        gsap.set(tarjeta, { z: 1 });
+        gsap.set("#bolsillo", { z: 2 });
+        gsap.set(solapa, { z: 3, transformOrigin: "50% 0%" });
+        gsap.set(sello, { xPercent: -50, yPercent: -50, z: 5 });
+        gsap.set(brillo, { z: 6 });
+
+        const quieto = menosMovimiento();
+        const quitarPetalos = capaPetalos ? crearPetalos(capaPetalos, 16) : () => {};
+
+        // ── Entrada ────────────────────────────────────────────
+        const entrada = gsap.timeline({ delay: 0.2 });
+        entrada
+            .from(ramos, {
+                opacity: 0,
+                scale: 0.7,
+                duration: 1.4,
+                stagger: 0.15,
+                ease: "power3.out",
+            })
+            .from(
+                encabezado,
+                {
+                    opacity: 0,
+                    y: 18,
+                    filter: "blur(6px)",
+                    duration: 0.9,
+                    stagger: 0.12,
+                    ease: "power2.out",
+                },
+                0.2,
+            )
+            .from(
+                inclinacion,
+                {
+                    rotationX: 70,
+                    y: 140,
+                    opacity: 0,
+                    duration: 1.5,
+                    ease: "power3.out",
+                },
+                0.5,
+            )
+            .from(sombra, { opacity: 0, scale: 0.4, duration: 1.2 }, 0.8)
+            .from(sello, { scale: 0, duration: 0.7, ease: "back.out(2.2)" }, 1.4)
+            .from(instruccion, { opacity: 0, y: 10, duration: 0.8 }, 1.6);
+
+        // ── Balanceo suave (se ve en 3D aunque no se mueva el celular) ──
+        const balanceo: gsap.core.Tween[] = quieto
+            ? []
+            : [
+                  gsap.to(flotar, {
+                      y: -10,
+                      duration: 2.6,
+                      repeat: -1,
+                      yoyo: true,
+                      ease: "sine.inOut",
+                  }),
+                  gsap.fromTo(
+                      flotar,
+                      { rotationY: -9 },
+                      {
+                          rotationY: 9,
+                          duration: 4.2,
+                          repeat: -1,
+                          yoyo: true,
+                          ease: "sine.inOut",
+                      },
+                  ),
+                  gsap.fromTo(
+                      flotar,
+                      { rotationX: 4 },
+                      {
+                          rotationX: -6,
+                          duration: 3.4,
+                          repeat: -1,
+                          yoyo: true,
+                          ease: "sine.inOut",
+                      },
+                  ),
+                  gsap.to(sombra, {
+                      scale: 0.86,
+                      opacity: 0.7,
+                      duration: 2.6,
+                      repeat: -1,
+                      yoyo: true,
+                      ease: "sine.inOut",
+                  }),
+              ];
+
+        // ── Inclinación con el mouse / el celular ──────────────
+        const girarY = gsap.quickTo(inclinacion, "rotationY", { duration: 0.8, ease: "power3.out" });
+        const girarX = gsap.quickTo(inclinacion, "rotationX", { duration: 0.8, ease: "power3.out" });
+        const movimientosRamo = Array.from(ramos).map((r) => ({
+            prof: Number(r.dataset.profundidad),
+            x: gsap.quickTo(r, "x", { duration: 1, ease: "power3.out" }),
+            y: gsap.quickTo(r, "y", { duration: 1, ease: "power3.out" }),
+        }));
+
+        const dejarDeSeguir = quieto
+            ? () => {}
+            : seguirPuntero((nx, ny) => {
+                  // Mientras entra, el sobre lo maneja la animación de entrada
+                  if (entrada.isActive()) return;
+                  girarY(nx * 16);
+                  girarX(-ny * 12);
+                  movimientosRamo.forEach(({ prof, x, y }) => {
+                      x(-nx * prof);
+                      y(-ny * prof);
+                  });
+              });
+
+        // ── Polvo dorado que sale de la boca del sobre ─────────
+        const soltarPolvo = () => {
+            if (!polvo || quieto) return;
+            for (let i = 0; i < 30; i++) {
+                const chispa = document.createElement("span");
+                const tam = gsap.utils.random(3, 7);
+                chispa.className = "chispa";
+                chispa.style.width = chispa.style.height = `${tam}px`;
+                polvo.appendChild(chispa);
+                gsap.fromTo(
+                    chispa,
+                    {
+                        x: gsap.utils.random(-60, 60),
+                        y: 0,
+                        z: 8,
+                        opacity: 0,
+                        scale: 0.4,
+                    },
+                    {
+                        x: `+=${gsap.utils.random(-90, 90)}`,
+                        y: gsap.utils.random(-230, -60),
+                        z: gsap.utils.random(-40, 220),
+                        opacity: 1,
+                        scale: 1,
+                        duration: gsap.utils.random(1.4, 2.4),
+                        ease: "power2.out",
+                        onComplete: () => {
+                            gsap.to(chispa, {
+                                opacity: 0,
+                                duration: 0.6,
+                                onComplete: () => chispa.remove(),
+                            });
+                        },
+                    },
+                );
+            }
+        };
+
+        // ── Abrir ──────────────────────────────────────────────
+        let abierto = false;
+
+        const abrir = () => {
+            if (abierto) return;
+            abierto = true;
+            dejarDeSeguir();
+            entrada.progress(1);
+            balanceo.forEach((t) => t.kill());
+
+            // La melodía arranca con el toque (los navegadores no dejan
+            // reproducir sin un gesto del invitado). El botón flotante de
+            // BotonMusica.astro aparece solo al detectarla.
+            const audio = new Audio("/musica/melodia2.mp3");
+            audio.loop = true;
+            audio.volume = 0.5;
+            audio.play().catch(() => {});
+            (window as any).audioGlobal = audio;
+            (window as any).estaReproduciendoGlobal = true;
+
+            gsap.timeline()
+                // 1. El sobre se acerca y se recuesta apenas, como si lo
+                //    tomaran entre las manos
+                .to(inclinacion, { rotationX: 0, rotationY: 0, duration: 0.9, ease: "power3.inOut" }, 0)
+                .to(flotar, { y: 0, z: 70, rotationX: -12, rotationY: 0, duration: 1.1, ease: "power3.inOut" }, 0)
+                .to(sombra, { scale: 1.1, opacity: 0.55, duration: 1.1, ease: "power2.inOut" }, 0)
+                .to(instruccion, { opacity: 0, y: 8, duration: 0.5 }, 0)
+
+                // 2. El sello late una vez y se disuelve en luz
+                .to(sello, { scale: 1.12, duration: 0.3, ease: "power2.out" }, 0.25)
+                .to(
+                    sello,
+                    {
+                        scale: 0.55,
+                        y: -8,
+                        opacity: 0,
+                        filter: "blur(6px) brightness(1.6)",
+                        duration: 0.65,
+                        ease: "power2.in",
+                    },
+                    0.55,
+                )
+
+                // 3. Un destello cruza el papel
+                .set(brillo, { opacity: 1 }, 0.95)
+                .fromTo(
+                    brillo,
+                    { "--brillo-x": "0%" },
+                    { "--brillo-x": "420%", duration: 1.1, ease: "power2.inOut" },
+                    0.95,
+                )
+                .set(brillo, { opacity: 0 }, 2.05)
+
+                // 4. La solapa se abre despacio sobre su bisagra; al pasar la
+                //    vertical queda detrás de la tarjeta
+                .to(solapa, { rotationX: 180, duration: 1.5, ease: "power2.inOut" }, 1.15)
+                .set(solapa, { z: -2 }, 1.9)
+                .to(
+                    encabezado,
+                    { opacity: 0, y: -16, duration: 0.6, stagger: 0.05, ease: "power2.in" },
+                    1.15,
+                )
+                .add(soltarPolvo, 1.75)
+
+                // 5. La tarjeta sube y sale del sobre
+                .to(tarjeta, { y: "-108%", duration: 1.4, ease: "power3.inOut" }, 2.35)
+                .set(tarjeta, { z: 14 }, 3.6)
+
+                // 6. El sobre se aleja hacia abajo y la tarjeta viene a la
+                //    cámara enderezándose
+                .to(flotar, { rotationX: 0, z: 0, duration: 1.3, ease: "power2.inOut" }, 3.6)
+                .to(
+                    [...restoDelSobre, solapa],
+                    { y: 110, opacity: 0, duration: 1, ease: "power2.in" },
+                    3.6,
+                )
+                .to(sombra, { opacity: 0, duration: 0.6 }, 3.6)
+                .to(
+                    tarjeta,
+                    { y: "-30%", z: 540, duration: 1.4, ease: "power3.inOut" },
+                    3.65,
+                )
+                .to(ramos, { opacity: 0, scale: 1.2, duration: 0.9, ease: "power2.in" }, 3.8)
+                .to(
+                    portada,
+                    {
+                        opacity: 0,
+                        duration: 0.7,
+                        ease: "power2.inOut",
+                        onStart: () => {
+                            document.body.classList.remove("portada-activa");
+                            window.scrollTo({ top: 0 });
+                            window.dispatchEvent(new Event("portada:abierta"));
+                        },
+                    },
+                    4.55,
+                )
+                .add(() => {
+                    quitarPetalos();
+                    portada.remove();
+                    document.querySelector(".defs-sobre")?.remove();
+                });
+        };
+
+        sello.addEventListener("click", (e) => {
+            e.stopPropagation();
+            abrir();
+        });
+        sobre.addEventListener("click", abrir);
+        sobre.addEventListener("keydown", (e) => {
+            if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                abrir();
+            }
+        });
+    });
+</script>

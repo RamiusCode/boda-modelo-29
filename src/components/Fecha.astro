@@ -1,0 +1,147 @@
+---
+// src/components/Fecha.astro
+// Banda "Acompáñanos este día" + los tres datos: día, lugar y hora.
+// Diseño sutil a propósito: rótulos chicos y espaciados, números en una
+// serif fina y separadores dorados casi transparentes.
+import Ramo from "./Ramo.astro";
+
+// ── DATOS EDITABLES ───────────────────────────────────────────
+const titulo = ["ACOMPÁÑANOS ESTE DÍA", "TAN ESPECIAL"];
+
+// `destacado` va un poco más grande (el número); `valor`, debajo.
+const datos = [
+    { rotulo: "DÍA", destacado: "16", valor: ["Octubre"] },
+    { rotulo: "LUGAR", valor: ["Hacienda", "Los Olivos"] },
+    { rotulo: "HORA", destacado: "12:00", valor: ["p. m."] },
+];
+// ──────────────────────────────────────────────────────────────
+---
+
+<section id="franja-fecha" class="franja relative w-full py-8 px-7 overflow-hidden">
+    <div class="franja-fondo absolute inset-0 bg-vino">
+        <span class="franja-filete arriba"></span>
+        <span class="franja-filete abajo"></span>
+    </div>
+
+    <h2
+        class="franja-texto relative font-callingstone text-crema text-center text-[clamp(0.75rem,3.8vw,1.02rem)] tracking-[0.1em] leading-[2.2]"
+    >
+        {titulo.map((linea) => (
+            <span class="block whitespace-nowrap">{linea}</span>
+        ))}
+    </h2>
+</section>
+
+<!-- Mismo aire arriba y abajo: antes el pie era más grande (pb-24) que la cabeza. -->
+<section id="datos-boda" class="relative w-full px-3 pt-14 pb-24 overflow-hidden">
+    <div class="flex items-stretch justify-center">
+        {
+            datos.map((dato, i) => (
+                <>
+                    {i > 0 && <div class="fecha-separador" aria-hidden="true" />}
+                    <div class="flex-1 min-w-0 px-1 text-center">
+                        {/*
+                           text-indent compensa el espacio que tracking deja
+                           DESPUÉS de la última letra: sin esto el renglón se
+                           centra contando ese hueco y las letras quedan
+                           corridas a la izquierda.
+                        */}
+                        <h3 class="font-cormorant font-medium text-[#b08a50] text-[clamp(1rem,4.6vw,1.15rem)] tracking-[0.24em] [text-indent:0.24em] whitespace-nowrap">
+                            {dato.rotulo}
+                        </h3>
+                        <span class="fecha-raya" aria-hidden="true"></span>
+                        <div class="mt-2">
+                            {dato.destacado && (
+                                <p class="font-cormorant text-vino text-[clamp(2.5rem,11.5vw,3rem)] leading-[1.05]">
+                                    {dato.destacado}
+                                </p>
+                            )}
+                            {dato.valor.map((linea) => (
+                                <p class="font-cormorant italic text-marron text-[clamp(1.25rem,5.8vw,1.48rem)] leading-[1.35] whitespace-nowrap">
+                                    {linea}
+                                </p>
+                            ))}
+                        </div>
+                    </div>
+                </>
+            ))
+        }
+    </div>
+
+    <div class="adorno-vino mt-10" aria-hidden="true">
+        <span></span><i></i><span></span>
+    </div>
+
+    <!-- Ramitos de rosas asomando desde las esquinas de abajo -->
+    <div class="fecha-ramo izq" aria-hidden="true">
+        <Ramo id="ramo-fecha-izq" class="w-full h-auto ramo-sombra" />
+    </div>
+    <div class="fecha-ramo der" aria-hidden="true">
+        <Ramo id="ramo-fecha-der" espejo class="w-full h-auto ramo-sombra" />
+    </div>
+</section>
+
+<style>
+    /* Línea dorada finísima que se desvanece arriba y abajo */
+    .fecha-ramo {
+        position: absolute;
+        bottom: -26px;
+        width: 34%;
+        max-width: 150px;
+        pointer-events: none;
+    }
+    .fecha-ramo.izq {
+        left: -40px;
+    }
+    .fecha-ramo.der {
+        right: -40px;
+    }
+
+    /* Rayita dorada corta bajo cada rótulo */
+    .fecha-raya {
+        display: block;
+        width: 26px;
+        height: 1px;
+        margin: 0.45rem auto 0;
+        background: #c7a467;
+    }
+
+    .fecha-separador {
+        position: relative;
+        width: 1px;
+        margin: 0.25rem 0;
+        background-image: linear-gradient(
+            180deg,
+            transparent,
+            rgba(199, 164, 103, 0.7) 30%,
+            rgba(199, 164, 103, 0.7) 70%,
+            transparent
+        );
+    }
+    /* Rombito dorado al centro del separador */
+    .fecha-separador::after {
+        content: "";
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 5px;
+        height: 5px;
+        transform: translate(-50%, -50%) rotate(45deg);
+        background: #c7a467;
+    }
+</style>
+
+<script>
+    import { animarEntrada, animarFranja } from "../scripts/animaciones";
+
+    document.addEventListener("DOMContentLoaded", () => {
+        const franja = document.getElementById("franja-fecha");
+        if (franja) animarFranja(franja);
+
+        const bloque = document.getElementById("datos-boda");
+        if (!bloque) return;
+
+        // Las tres columnas, los separadores y el adorno del pie.
+        animarEntrada(bloque.querySelectorAll<HTMLElement>(":scope > div:first-child > *, :scope > .adorno-vino, :scope > .fecha-ramo"), bloque);
+    });
+</script>

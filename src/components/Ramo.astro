@@ -1,0 +1,31 @@
+---
+// src/components/Ramo.astro
+// Ramo de flores (rosas vino, rubor y marfil con hojas y perlitas) para
+// las esquinas de la invitación. Es la imagen /imagenes/flores.webp,
+// recortada a su contenido y comprimida.
+//
+// Está compuesto para la esquina inferior izquierda; para las otras
+// esquinas se espeja con `espejo` (y se gira desde afuera si va arriba).
+// La imagen original mira hacia la derecha, por eso sin `espejo` se da
+// vuelta.
+interface Props {
+    // Se conserva para no tener que tocar los lugares que ya lo usan.
+    id?: string;
+    espejo?: boolean;
+    class?: string;
+}
+
+const { espejo = false, class: clase = "" } = Astro.props;
+---
+
+<img
+    src="/imagenes/flores.webp"
+    alt=""
+    width="700"
+    height="798"
+    loading="lazy"
+    decoding="async"
+    class={clase}
+    style={espejo ? undefined : "transform: scaleX(-1)"}
+    aria-hidden="true"
+/>

@@ -1,0 +1,15 @@
+---
+// src/pages/index.astro
+// Invitación de MUESTRA para clientes: sin nombre de invitado y con una
+// cantidad de pases de ejemplo, para que se vea la sección de pases.
+import Layout from "../layouts/Layout.astro";
+import Invitacion from "../components/Invitacion.astro";
+import { tituloPagina } from "../data/evento";
+
+// Pases de ejemplo para la muestra
+const pasesDeMuestra = 2;
+---
+
+<Layout title={tituloPagina}>
+    <Invitacion pases={pasesDeMuestra} />
+</Layout>

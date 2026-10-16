@@ -1,0 +1,190 @@
+---
+// src/components/Despedida.astro
+// Cierre de la invitación: arco vino a todo el ancho, con la misma
+// terminación que el arco de los novios del principio (doble filete crema
+// y dorado, medallón con el monograma y ramos en la base).
+//
+// Al asomar: el arco aparece, sus filetes se dibujan subiendo por la
+// cúpula, el medallón gira a su lugar, entran los textos, brotan los ramos
+// y caen unos pocos pétalos, despacio.
+import Ramo from "./Ramo.astro";
+import { evento } from "../data/evento";
+
+// ── DATOS EDITABLES ───────────────────────────────────────────
+const agradecimiento = ["Gracias por ser parte", "de nuestra historia"];
+const lugar = "La Paz · Bolivia";
+// ──────────────────────────────────────────────────────────────
+
+const { nombre1, nombre2, monograma, iniciales, fechaCorta } = evento;
+---
+
+<section id="despedida" class="relative w-full pt-6 overflow-hidden">
+    <div id="petalos-despedida" class="capa-petalos"></div>
+
+    <div
+        id="arco-final"
+        class="arco-luz arco-oro relative w-full bg-vino rounded-t-full px-6 pt-[24%] pb-24 text-center"
+    >
+        <p class="despedida-texto font-cormorant font-medium italic text-crema/90 text-[clamp(1.2rem,5.5vw,1.4rem)] leading-[1.45]">
+            {agradecimiento.map((linea) => <span class="block">{linea}</span>)}
+        </p>
+
+        <div id="despedida-medallon" class="medallon w-[82px] h-[82px] mx-auto mt-7">
+            <img src={monograma} alt={iniciales} width="908" height="702" class="w-[52px] h-auto" />
+        </div>
+
+        <h2
+            class="despedida-texto font-great-vibes text-crema text-[clamp(2.1rem,9.8vw,2.75rem)] leading-[1.2] mt-6 whitespace-nowrap despedida-sombra"
+        >
+            {nombre1}<span class="mx-[0.22em]">&amp;</span>{nombre2}
+        </h2>
+
+        <div class="despedida-texto adorno-oro mt-3" aria-hidden="true">
+            <span></span><i></i><span></span>
+        </div>
+
+        <p class="despedida-texto font-cormorant text-oro-claro text-[1.05rem] tracking-[0.34em] [text-indent:0.34em] mt-3">
+            {fechaCorta}
+        </p>
+
+        <p class="despedida-texto font-cormorant font-medium text-crema/85 text-[clamp(1rem,4.5vw,1.12rem)] tracking-[0.22em] [text-indent:0.22em] uppercase mt-5">
+            {lugar}
+        </p>
+
+        <!-- Corazoncito dorado de cierre -->
+        <svg class="despedida-texto despedida-corazon" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M12 21s-7.5-4.7-9.3-9A5.3 5.3 0 0 1 12 6.5 5.3 5.3 0 0 1 21.3 12c-1.8 4.3-9.3 9-9.3 9z" />
+        </svg>
+
+        <!-- Ramos apoyados en la base del arco -->
+        <div class="despedida-ramo izq" aria-hidden="true">
+            <Ramo id="ramo-despedida-izq" class="w-full h-auto ramo-sombra" />
+        </div>
+        <div class="despedida-ramo der" aria-hidden="true">
+            <Ramo id="ramo-despedida-der" espejo class="w-full h-auto ramo-sombra" />
+        </div>
+    </div>
+</section>
+
+<style>
+    .despedida-sombra {
+        text-shadow: 0 2px 12px rgba(0, 0, 0, 0.2);
+    }
+
+    .despedida-corazon {
+        display: block;
+        width: 15px;
+        height: 15px;
+        margin: 1.6rem auto 0;
+        fill: #d9bd85;
+    }
+
+    .despedida-ramo {
+        position: absolute;
+        bottom: -14px;
+        width: 34%;
+        max-width: 150px;
+        pointer-events: none;
+    }
+    .despedida-ramo.izq {
+        left: -14px;
+    }
+    .despedida-ramo.der {
+        right: -14px;
+    }
+</style>
+
+<script>
+    import { gsap } from "gsap";
+    import { ScrollTrigger } from "gsap/ScrollTrigger";
+    import { animarEntrada } from "../scripts/animaciones";
+    import { crearPetalos, menosMovimiento } from "../scripts/tres-d";
+
+    gsap.registerPlugin(ScrollTrigger);
+
+    document.addEventListener("DOMContentLoaded", () => {
+        const seccion = document.getElementById("despedida");
+        const arco = document.getElementById("arco-final");
+        const medallon = document.getElementById("despedida-medallon");
+        const capaPetalos = document.getElementById("petalos-despedida");
+        if (!seccion || !arco) return;
+
+        const textos = arco.querySelectorAll(".despedida-texto");
+        const ramos = arco.querySelectorAll(".despedida-ramo");
+
+        if (menosMovimiento()) {
+            animarEntrada(arco, arco);
+            return;
+        }
+
+        let petalosCaen = false;
+
+        // Mismo criterio que scripts/animaciones.ts: se repite al volver a
+        // bajar y se esconde al salir por arriba.
+        gsap.timeline({
+            scrollTrigger: {
+                trigger: arco,
+                start: "top 85%",
+                toggleActions: "restart none none reset",
+            },
+        })
+            .fromTo(
+                arco,
+                { opacity: 0, y: 30 },
+                { opacity: 1, y: 0, duration: 1.1, ease: "power3.out" },
+                0,
+            )
+            // Los dos filetes se dibujan subiendo por la cúpula
+            .fromTo(
+                arco,
+                { "--filete": "100%" },
+                { "--filete": "0%", duration: 1.8, ease: "power2.inOut" },
+                0.2,
+            )
+            .fromTo(
+                medallon,
+                { opacity: 0, scale: 0.5, rotation: -90 },
+                { opacity: 1, scale: 1, rotation: 0, duration: 1.1, ease: "back.out(1.6)" },
+                0.6,
+            )
+            .fromTo(
+                textos,
+                { opacity: 0, y: 16, filter: "blur(5px)" },
+                {
+                    opacity: 1,
+                    y: 0,
+                    filter: "blur(0px)",
+                    duration: 0.9,
+                    stagger: 0.12,
+                    ease: "power3.out",
+                    clearProps: "filter",
+                },
+                0.4,
+            )
+            // Los ramos brotan desde las esquinas de la base
+            .fromTo(
+                ramos,
+                {
+                    opacity: 0,
+                    scale: 0.55,
+                    rotation: (i: number) => (i ? 14 : -14),
+                    transformOrigin: (i: number) => (i ? "100% 100%" : "0% 100%"),
+                },
+                {
+                    opacity: 1,
+                    scale: 1,
+                    rotation: 0,
+                    duration: 1.3,
+                    stagger: 0.15,
+                    ease: "back.out(1.4)",
+                },
+                1,
+            )
+            // Unos pocos pétalos, una sola vez: el cierre de la invitación
+            .add(() => {
+                if (petalosCaen || !capaPetalos) return;
+                petalosCaen = true;
+                crearPetalos(capaPetalos, 8);
+            }, 1.2);
+    });
+</script>

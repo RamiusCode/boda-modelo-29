@@ -1,0 +1,203 @@
+---
+// src/components/Pases.astro
+// Banda "Pases reservados" + la cantidad de pases del invitado: el número
+// en vino dentro de un anillo dorado, como los del contador, y la frase
+// debajo. Va justo antes de la confirmación.
+//
+// Al asomar: el anillo se dibuja, el número cuenta desde cero hasta la
+// cantidad de pases y entran la palabra y la frase.
+//
+// Sin `pases` la sección no se dibuja.
+import FloresEsquinas from "./FloresEsquinas.astro";
+import { textoPases } from "../data/pases";
+
+interface Props {
+    pases?: number;
+}
+
+const { pases } = Astro.props;
+const texto = pases ? textoPases(pases) : null;
+
+// ── DATOS EDITABLES ───────────────────────────────────────────
+const titulo = "PASES RESERVADOS";
+// ──────────────────────────────────────────────────────────────
+---
+
+{
+    pases && texto && (
+        <>
+            <section
+                id="franja-pases"
+                class="franja relative w-full py-8 px-7 overflow-hidden"
+            >
+                <div class="franja-fondo absolute inset-0 bg-vino">
+                    <span class="franja-filete arriba" />
+                    <span class="franja-filete abajo" />
+                </div>
+
+                <h2 class="franja-texto relative font-callingstone text-crema text-center text-[clamp(0.75rem,3.8vw,1.02rem)] tracking-[0.12em]">
+                    {titulo}
+                </h2>
+            </section>
+
+            <section
+                id="pases"
+                class="relative isolate overflow-hidden w-full px-5 pt-14 pb-24 text-center"
+                data-pases={pases}
+            >
+                <div class="pases-medalla">
+                    <svg class="pases-anillo" viewBox="0 0 100 100" aria-hidden="true">
+                        <circle class="pista" cx="50" cy="50" r="47" />
+                        <circle class="trazo" cx="50" cy="50" r="47" pathLength="1" />
+                        <circle class="interior" cx="50" cy="50" r="41" />
+                    </svg>
+                    <span id="pases-numero" class="pases-numero font-cormorant font-medium text-vino">
+                        {pases}
+                    </span>
+                </div>
+
+                <p class="pases-texto font-cormorant font-semibold text-[#b08a50] text-[clamp(1.05rem,4.8vw,1.2rem)] tracking-[0.3em] [text-indent:0.3em] uppercase mt-5">
+                    {texto.rotulo}
+                </p>
+
+                <div class="pases-texto adorno-oro mt-3" aria-hidden="true">
+                    <span /><i /><span />
+                </div>
+
+                <p class="pases-texto font-cormorant font-medium italic text-marron text-[clamp(1.3rem,6vw,1.48rem)] leading-[1.45] mt-4">
+                    {texto.frase.map((linea) => (
+                        <span class="block">{linea}</span>
+                    ))}
+                </p>
+
+                <FloresEsquinas lados={["izq", "der"]} ancho={120} />
+            </section>
+        </>
+    )
+}
+
+<style>
+    .pases-medalla {
+        position: relative;
+        width: 120px;
+        height: 120px;
+        margin: 0 auto;
+    }
+    .pases-anillo {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        overflow: visible;
+    }
+    .pases-anillo .pista {
+        fill: none;
+        stroke: rgba(199, 164, 103, 0.25);
+        stroke-width: 1;
+    }
+    /* El trazo arranca arriba (las 12) y se dibuja en sentido horario */
+    .pases-anillo .trazo {
+        fill: none;
+        stroke: #c7a467;
+        stroke-width: 1.6;
+        stroke-linecap: round;
+        stroke-dasharray: 1;
+        stroke-dashoffset: 0;
+        transform: rotate(-90deg);
+        transform-origin: 50px 50px;
+    }
+    .pases-anillo .interior {
+        fill: none;
+        stroke: rgba(199, 164, 103, 0.35);
+        stroke-width: 0.6;
+    }
+    .pases-numero {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 3.4rem;
+        line-height: 1;
+    }
+</style>
+
+<script>
+    import { gsap } from "gsap";
+    import { ScrollTrigger } from "gsap/ScrollTrigger";
+    import { animarEntrada, animarFranja } from "../scripts/animaciones";
+
+    gsap.registerPlugin(ScrollTrigger);
+
+    document.addEventListener("DOMContentLoaded", () => {
+        const franja = document.getElementById("franja-pases");
+        if (franja) animarFranja(franja);
+
+        const seccion = document.getElementById("pases");
+        if (!seccion) return;
+
+        const trazo = seccion.querySelector(".pases-anillo .trazo");
+        const numero = document.getElementById("pases-numero");
+        const medalla = seccion.querySelector(".pases-medalla");
+        const textos = seccion.querySelectorAll(".pases-texto");
+        const total = Number(seccion.dataset.pases);
+
+        if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+            animarEntrada(seccion.children, seccion);
+            return;
+        }
+
+        const cuenta = { valor: 0 };
+
+        // Mismo criterio que scripts/animaciones.ts: se repite al volver a
+        // bajar y se esconde al salir por arriba.
+        gsap.timeline({
+            scrollTrigger: {
+                trigger: seccion,
+                start: "top 85%",
+                toggleActions: "restart none none reset",
+            },
+        })
+            .fromTo(
+                medalla,
+                { opacity: 0, scale: 0.85 },
+                { opacity: 1, scale: 1, duration: 0.8, ease: "back.out(1.6)" },
+                0,
+            )
+            // El anillo dorado se dibuja alrededor del número
+            .fromTo(
+                trazo,
+                { strokeDashoffset: 1 },
+                { strokeDashoffset: 0, duration: 1.4, ease: "power2.inOut" },
+                0.1,
+            )
+            // El número cuenta desde cero hasta la cantidad de pases
+            .fromTo(
+                cuenta,
+                { valor: 0 },
+                {
+                    valor: total,
+                    duration: 1.2,
+                    ease: "power2.out",
+                    onUpdate: () => {
+                        if (numero) numero.textContent = String(Math.round(cuenta.valor));
+                    },
+                },
+                0.2,
+            )
+            .fromTo(
+                textos,
+                { opacity: 0, y: 16, filter: "blur(5px)" },
+                {
+                    opacity: 1,
+                    y: 0,
+                    filter: "blur(0px)",
+                    duration: 0.9,
+                    stagger: 0.12,
+                    ease: "power3.out",
+                    clearProps: "filter",
+                },
+                0.5,
+            );
+    });
+</script>

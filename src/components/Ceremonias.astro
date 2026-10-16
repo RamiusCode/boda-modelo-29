@@ -1,0 +1,217 @@
+---
+// src/components/Ceremonias.astro
+// La ceremonia religiosa y la civil, cada una como sección propia: su
+// franja vino con el título y debajo el ícono dentro de un anillo dorado,
+// el lugar, la dirección y el botón de ubicación.
+//
+// Al asomar cada una: el anillo dorado se dibuja alrededor del ícono y
+// después aparecen el lugar, la dirección y el botón.
+// ── DATOS EDITABLES ───────────────────────────────────────────
+// Muestra para clientes: los botones no llevan a ningún lado (`mapa: "#"`).
+// Para un evento real, poner en `mapa` el enlace exacto de Google Maps.
+import FloresEsquinas from "./FloresEsquinas.astro";
+const ceremonias = [
+    {
+        id: "religiosa",
+        titulo: "CEREMONIA RELIGIOSA",
+        icono: "/iconos/iglesia.png",
+        lugar: ["Parroquia San Miguel"],
+        direccion: ["Calle Los Pinos #456,", "Zona Sur"],
+        mapa: "#",
+    },
+    {
+        id: "civil",
+        titulo: "CEREMONIA CIVIL",
+        icono: "/imagenes/ceremoniacivil.png",
+        lugar: ["Hacienda Los Olivos", "Salón de Eventos"],
+        direccion: ["Av. Principal #123,", "Zona Sur"],
+        mapa: "#",
+    },
+];
+
+const textoBoton = "Ver ubicación";
+// ──────────────────────────────────────────────────────────────
+
+// Circunferencia del anillo (radio 47 en un viewBox de 100)
+const VUELTA = 2 * Math.PI * 47;
+---
+
+{
+    ceremonias.map((c) => (
+        <>
+            {/* Cada ceremonia es su propia sección, con su franja vino */}
+            <section
+                id={`franja-${c.id}`}
+                class="franja franja-ceremonia relative w-full py-8 px-7 overflow-hidden"
+            >
+                <div class="franja-fondo absolute inset-0 bg-vino">
+                    <span class="franja-filete arriba" />
+                    <span class="franja-filete abajo" />
+                </div>
+
+                <h2 class="franja-texto relative font-callingstone text-crema text-center text-[clamp(0.75rem,3.8vw,1.02rem)] tracking-[0.12em]">
+                    {c.titulo}
+                </h2>
+            </section>
+
+            <section class="relative isolate overflow-hidden w-full px-5 pt-14 pb-24 text-center">
+                <article class="ceremonia" id={`ceremonia-${c.id}`}>
+                    <div class="ceremonia-medalla">
+                        <svg class="ceremonia-anillo" viewBox="0 0 100 100" aria-hidden="true">
+                            <circle class="pista" cx="50" cy="50" r="47" />
+                            <circle
+                                class="trazo"
+                                cx="50"
+                                cy="50"
+                                r="47"
+                                stroke-dasharray={VUELTA}
+                                stroke-dashoffset="0"
+                            />
+                            <circle class="interior" cx="50" cy="50" r="42" />
+                        </svg>
+                        <span
+                            class="ceremonia-icono icono"
+                            style={`--ic: url('${c.icono}')`}
+                            aria-hidden="true"
+                        />
+                    </div>
+
+                    <div class="ceremonia-texto adorno-oro mt-6" aria-hidden="true">
+                        <span /><i /><span />
+                    </div>
+
+                    <p class="ceremonia-texto font-cormorant font-semibold text-marron text-[clamp(1.35rem,6.2vw,1.55rem)] leading-[1.35] mt-4">
+                        {c.lugar.map((linea) => (
+                            <span class="block whitespace-nowrap">{linea}</span>
+                        ))}
+                    </p>
+
+                    <p class="ceremonia-texto font-cormorant font-medium italic text-marron text-[clamp(1.3rem,6vw,1.48rem)] leading-[1.4] mt-2">
+                        {c.direccion.map((linea) => (
+                            <span class="block whitespace-nowrap">{linea}</span>
+                        ))}
+                    </p>
+
+                    <div class="ceremonia-texto mt-6">
+                        <a href={c.mapa} onclick="event.preventDefault()" class="boton-fino">
+                            <svg viewBox="0 0 24 24" aria-hidden="true">
+                                <path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11zM12 12.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z" />
+                            </svg>
+                            {textoBoton}
+                        </a>
+                    </div>
+                </article>
+
+                {/* Una sola esquina, alternada: religiosa a la derecha y
+                    civil a la izquierda */}
+                <FloresEsquinas lados={[c.id === "religiosa" ? "der" : "izq"]} ancho={120} />
+            </section>
+        </>
+    ))
+}
+
+<style>
+    .ceremonia-medalla {
+        position: relative;
+        width: 104px;
+        height: 104px;
+        margin: 0 auto;
+    }
+    .ceremonia-anillo {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        overflow: visible;
+    }
+    .ceremonia-anillo .pista {
+        fill: none;
+        stroke: rgba(199, 164, 103, 0.25);
+        stroke-width: 1;
+    }
+    /* El trazo arranca arriba (las 12) y se dibuja en sentido horario */
+    .ceremonia-anillo .trazo {
+        fill: none;
+        stroke: #c7a467;
+        stroke-width: 1.4;
+        stroke-linecap: round;
+        transform: rotate(-90deg);
+        transform-origin: 50px 50px;
+    }
+    .ceremonia-anillo .interior {
+        fill: none;
+        stroke: rgba(199, 164, 103, 0.35);
+        stroke-width: 0.6;
+    }
+    .ceremonia-icono {
+        position: absolute;
+        inset: 24px;
+        background-color: var(--color-vino);
+    }
+
+</style>
+
+<script>
+    import { gsap } from "gsap";
+    import { ScrollTrigger } from "gsap/ScrollTrigger";
+    import { animarEntrada, animarFranja } from "../scripts/animaciones";
+
+    gsap.registerPlugin(ScrollTrigger);
+
+    document.addEventListener("DOMContentLoaded", () => {
+        document
+            .querySelectorAll<HTMLElement>(".franja-ceremonia")
+            .forEach((franja) => animarFranja(franja));
+
+        const quieto = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+        document.querySelectorAll<HTMLElement>(".ceremonia").forEach((ceremonia) => {
+            const trazo = ceremonia.querySelector<SVGCircleElement>(".trazo");
+            const icono = ceremonia.querySelector(".ceremonia-icono");
+            const textos = ceremonia.querySelectorAll(".ceremonia-texto");
+
+            if (quieto || !trazo) {
+                animarEntrada(ceremonia, ceremonia);
+                return;
+            }
+
+            const vuelta = Number(trazo.getAttribute("stroke-dasharray"));
+
+            // Mismo criterio que scripts/animaciones.ts: se repite al volver
+            // a bajar y se esconde al salir por arriba.
+            gsap.timeline({
+                scrollTrigger: {
+                    trigger: ceremonia,
+                    start: "top 88%",
+                    toggleActions: "restart none none reset",
+                },
+            })
+                // El anillo dorado se dibuja alrededor del ícono
+                .fromTo(
+                    trazo,
+                    { strokeDashoffset: vuelta },
+                    { strokeDashoffset: 0, duration: 1.4, ease: "power2.inOut" },
+                    0,
+                )
+                .fromTo(
+                    icono,
+                    { opacity: 0, scale: 0.7 },
+                    { opacity: 1, scale: 1, duration: 0.9, ease: "back.out(1.6)" },
+                    0.35,
+                )
+                .fromTo(
+                    textos,
+                    { opacity: 0, y: 14, filter: "blur(4px)" },
+                    {
+                        opacity: 1,
+                        y: 0,
+                        filter: "blur(0px)",
+                        duration: 0.8,
+                        stagger: 0.1,
+                        ease: "sine.out",
+                    },
+                    0.5,
+                );
+        });
+    });
+</script>
